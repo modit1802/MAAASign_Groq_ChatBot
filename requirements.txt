@@ -1,0 +1,12 @@
+langchain
+langchain_groq
+faiss-cpu
+pandas
+python-dotenv
+fastapi
+uvicorn
+pydantic
+langchain_community
+huggingface-hub
+beautifulsoup4
+streamlit

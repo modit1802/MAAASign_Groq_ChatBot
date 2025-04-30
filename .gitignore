@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+
+# Virtual environment
+venv/
+env/
+.venv/
+ENV/
+myenv/
+# FAISS index files
+# faiss_index/
+
+# Environment variables
+.env
+*.env
+
+# VS Code config
+.vscode/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Pytest cache
+.pytest_cache/
+
+# MyPy cache
+.mypy_cache/
+
+# Uvicorn reload artifacts
+reload.*.json
