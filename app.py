@@ -182,5 +182,5 @@ async def ask_question(request: QuestionRequest):
         raise HTTPException(status_code=500, detail=f"Error: {e}")
 
 # Run app
-if __name__ == "__main__":
+if __name__ == "__app__":
     uvicorn.run(app, host="localhost", port=8000)
