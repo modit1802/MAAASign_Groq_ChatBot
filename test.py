@@ -1,7 +1,7 @@
 import requests
 
 url = "http://localhost:8000/ask"
-data = {"query": "how to father sign"}
+data = {"query": "how to home sign"}
 
 response = requests.post(url, json=data)
 
