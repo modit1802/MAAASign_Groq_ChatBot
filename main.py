@@ -4,7 +4,6 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from langchain_community.document_loaders import DataFrameLoader
-from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.prompts import PromptTemplate
 from langchain.chains import RetrievalQA
@@ -33,6 +32,24 @@ app = FastAPI(
 class QuestionRequest(BaseModel):
     query: str
 
+# Custom embedding class using HF Inference API
+class CustomHFEmbeddings:
+    def __init__(self, api_key, model_name):
+        self.api_url = f"https://api-inference.huggingface.co/models/{model_name}"
+        self.headers = {"Authorization": f"Bearer {api_key}"}
+
+    def embed_documents(self, texts):
+        return [self.embed_query(text) for text in texts]
+
+    def embed_query(self, text):
+        try:
+            response = requests.post(self.api_url, headers=self.headers, json={"inputs": text})
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logging.error(f"Embedding API failed: {e}")
+            raise HTTPException(status_code=500, detail="Failed to get embeddings from Hugging Face API")
+
 # Utility Functions
 def load_csv():
     try:
@@ -48,28 +65,27 @@ def create_documents(df):
     return loader.load()
 
 def create_embeddings():
-    return HuggingFaceInferenceAPIEmbeddings(
+    return CustomHFEmbeddings(
         api_key=HUGGINGFACE_API_TOKEN,
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
 
 def get_or_create_vectorstore():
     try:
+        embeddings = create_embeddings()
         if os.path.exists("faiss_index/index.faiss") and os.path.exists("faiss_index/index.pkl"):
             logging.debug("Loading FAISS vectorstore from disk...")
-            embeddings = create_embeddings()  # Safe to create since token is only used if FAISS missing
             return FAISS.load_local("faiss_index", embeddings, allow_dangerous_deserialization=True)
         else:
             logging.debug("Creating new FAISS vectorstore...")
             df = load_csv()
             documents = create_documents(df)
-            embeddings = create_embeddings()
             vectorstore = FAISS.from_documents(documents, embeddings)
             vectorstore.save_local("faiss_index")
             return vectorstore
     except Exception as e:
         logging.error(f"Error in vectorstore setup: {e}")
-        raise HTTPException(status_code=500, detail="Error in vectorstore setup")
+        raise HTTPException(status_code=500, detail="Error setting up vectorstore")
 
 def create_chain(vectorstore):
     llm = ChatGroq(
@@ -121,7 +137,7 @@ def fetch_web_content(query):
         logging.error(f"Error fetching web content: {e}")
         return []
 
-# Store vectorstore globally to reuse across requests
+# Load vectorstore & chain at startup
 vectorstore = get_or_create_vectorstore()
 df_cache = load_csv()
 qa_chain = create_chain(vectorstore)
@@ -130,7 +146,6 @@ qa_chain = create_chain(vectorstore)
 async def ask_question(request: QuestionRequest):
     try:
         logging.debug("Request received")
-
         response = qa_chain.invoke({"query": request.query})
         answer = response.get("result", "")
         source_docs = response.get("source_documents", [])
